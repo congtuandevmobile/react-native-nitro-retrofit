@@ -1,4 +1,4 @@
-name: Release Bun Package
+name: Release rn-nitro-retrofit
 
 on:
   push:
@@ -33,7 +33,7 @@ jobs:
       - name: Install Dependencies
         run: bun install --frozen-lockfile
       - name: Build Package
-        run: bun run prepare
+        run: bun run build
 
       # Step 4: Read version from package.json
       - name: Read package version
@@ -82,10 +82,11 @@ jobs:
           cat release.md
 
       # Step 7: Publish package
-      - name: Publish Bun package
-        run: bun publish --access public --tag ${{ steps.version.outputs.npm_tag }} --no-scripts
-        env:
-          NPM_AUTH_TOKEN: ${{ secrets.TUANNC2_SECRET_KEY }}
+      - name: Setup npm auth
+        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.TUANNC2_SECRET_KEY }}" > ~/.npmrc
+
+      - name: Publish package
+        run: npm publish --access public --tag ${{ steps.version.outputs.npm_tag }} --ignore-scripts
 
       # Step 8: Create git tag
       - name: Create git tag

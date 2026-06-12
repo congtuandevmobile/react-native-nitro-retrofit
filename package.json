@@ -34,7 +34,8 @@
   "scripts": {
     "example": "yarn workspace react-native-nitro-retrofit-example",
     "clean": "del-cli android/build example/android/build example/android/app/build example/ios/build lib",
-    "prepare": "bob build",
+    "build": "node_modules/.bin/bob build",
+    "prepare": "node_modules/.bin/bob build",
     "typecheck": "tsc --project tsconfig.build.json",
     "lint": "eslint \"**/*.{js,ts,tsx}\"",
     "test": "jest",
