@@ -1,0 +1,103 @@
+name: Release Bun Package
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - package.json
+      - CHANGELOG.md
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Step 2: Setup Bun
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          version: latest
+
+      # Step 3: Install Dependencies && Build Package
+      - name: Install Dependencies
+        run: bun install --frozen-lockfile
+      - name: Build Package
+        run: bun run prepare
+
+      # Step 4: Read version from package.json
+      - name: Read package version
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+
+          if [[ "$VERSION" == *"-"* ]]; then
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+            echo "npm_tag=beta" >> $GITHUB_OUTPUT
+            echo "Detected Pre-release version: $VERSION (tag: beta)"
+          else
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+            echo "npm_tag=latest" >> $GITHUB_OUTPUT
+            echo "Detected Release version: $VERSION (tag: latest)"
+          fi
+
+      # Step 5: Ensure tag doesn't already exist
+      - name: Check if tag exists
+        run: |
+          if git rev-parse "${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
+            echo "❌ Tag ${{ steps.version.outputs.tag }} already exists"
+            exit 1
+          fi
+
+      # Step 6: Extract release notes from CHANGELOG.md
+      - name: Generate release notes from CHANGELOG
+        id: notes
+        run: |
+          VERSION="${{ steps.version.outputs.tag }}"
+
+          if ! grep -q "## $VERSION" CHANGELOG.md; then
+            echo "❌ No changelog entry found for $VERSION"
+            exit 1
+          fi
+
+          awk -v ver="$VERSION" '
+            $0 == "## " ver {flag=1; next}
+            /^## v/ && flag {exit}
+            flag
+          ' CHANGELOG.md > release.md
+
+          echo "📄 Release notes:"
+          cat release.md
+
+      # Step 7: Publish package
+      - name: Publish Bun package
+        run: bun publish --access public --tag ${{ steps.version.outputs.npm_tag }}
+        env:
+          NPM_AUTH_TOKEN: ${{ secrets.TUANNC2_SECRET_KEY }}
+
+      # Step 8: Create git tag
+      - name: Create git tag
+        run: |
+          git tag ${{ steps.version.outputs.tag }}
+          git push origin ${{ steps.version.outputs.tag }}
+
+      # Step 9: Create GitHub Release (from CHANGELOG)
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Release ${{ steps.version.outputs.tag }}
+          body_path: release.md
+          prerelease: ${{ steps.version.outputs.is_prerelease }}
