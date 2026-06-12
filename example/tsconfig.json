@@ -7,7 +7,7 @@
       "@configuration/*": ["configuration/*"],
       "@local": ["local/index"],
       "@local/*": ["local/*"],
-      "react-native-nitro-retrofit": ["../src/index"]
+      "react-native-nitro-retrofit": ["../../src/index"]
     }
   },
   "include": ["src"]

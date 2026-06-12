@@ -35,7 +35,7 @@
     "example": "yarn workspace react-native-nitro-retrofit-example",
     "clean": "del-cli android/build example/android/build example/android/app/build example/ios/build lib",
     "prepare": "bob build",
-    "typecheck": "tsc",
+    "typecheck": "tsc --project tsconfig.build.json",
     "lint": "eslint \"**/*.{js,ts,tsx}\"",
     "test": "jest",
     "release": "release-it --only-version",

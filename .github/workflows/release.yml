@@ -83,7 +83,7 @@ jobs:
 
       # Step 7: Publish package
       - name: Publish Bun package
-        run: bun publish --access public --tag ${{ steps.version.outputs.npm_tag }}
+        run: bun publish --access public --tag ${{ steps.version.outputs.npm_tag }} --no-scripts
         env:
           NPM_AUTH_TOKEN: ${{ secrets.TUANNC2_SECRET_KEY }}
 
