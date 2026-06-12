@@ -1,0 +1,14 @@
+{
+  "extends": "../tsconfig",
+  "compilerOptions": {
+    "baseUrl": "./src",
+    "paths": {
+      "@utils/*": ["utils/*"],
+      "@configuration/*": ["configuration/*"],
+      "@local": ["local/index"],
+      "@local/*": ["local/*"],
+      "react-native-nitro-retrofit": ["../src/index"]
+    }
+  },
+  "include": ["src"]
+}

@@ -4,9 +4,9 @@
     "paths": {
       "react-native-nitro-retrofit": ["./src/index"]
     },
+    "experimentalDecorators": true,
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,
-    "customConditions": ["react-native-strict-api"],
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "jsx": "react-jsx",
