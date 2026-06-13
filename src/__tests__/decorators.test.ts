@@ -53,14 +53,14 @@ describe('@Headers', () => {
   it('sends per-method headers', async () => {
     await svc.getDashboard();
     const [, init] = lastCall();
-    expect(init.headers?.['X-Admin']).toBe('true');
-    expect(init.headers?.['Cache-Control']).toBe('no-cache');
+    expect(init.headers?.['x-admin']).toBe('true');
+    expect(init.headers?.['cache-control']).toBe('no-cache');
   });
 
   it('does NOT bleed headers to other methods on the same service', async () => {
     await svc.getUsers();
     const [, init] = lastCall();
-    expect(init.headers?.['X-Admin']).toBeUndefined();
+    expect(init.headers?.['x-admin']).toBeUndefined();
   });
 });
 
@@ -125,6 +125,12 @@ describe('validateQueryMap — error cases', () => {
     expect(() =>
       svc.search({ filter: { nested: true } } as unknown as object)
     ).toThrow('@QueriesMap: value for key "filter" must be a primitive');
+  });
+
+  it('error message shows typeof, not JSON.stringify (safe for circular refs)', () => {
+    expect(() =>
+      svc.search({ filter: { nested: true } } as unknown as object)
+    ).toThrow('got object');
   });
 
   it('accepts a valid QueryMap without throwing', async () => {

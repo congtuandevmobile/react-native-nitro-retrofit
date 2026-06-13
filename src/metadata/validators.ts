@@ -59,7 +59,7 @@ export function validateQueryMap(
     if (val !== null && val !== undefined && typeof val === 'object') {
       throw new Error(
         `@QueriesMap: value for key "${key}" must be a primitive ` +
-          `(string | number | boolean | null) — got ${JSON.stringify(val)}.`
+          `(string | number | boolean | null) — got ${typeof val}.`
       );
     }
   }

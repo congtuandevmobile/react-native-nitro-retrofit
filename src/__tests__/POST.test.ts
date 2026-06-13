@@ -41,7 +41,7 @@ describe('client.post()', () => {
     const client = setupClient();
     await client.post('/users', {});
     const [, init] = lastCall();
-    expect(init.headers?.['Content-Type']).toBe('application/json');
+    expect(init.headers?.['content-type']).toBe('application/json');
   });
 });
 
@@ -128,7 +128,7 @@ describe('Content-Type header edge cases', () => {
     const client = setupClient();
     await client.post('/trigger');
     const [, init] = lastCall();
-    expect(init.headers?.['Content-Type']).toBeUndefined();
+    expect(init.headers?.['content-type']).toBeUndefined();
     expect(init.body).toBeUndefined();
   });
 
@@ -136,6 +136,6 @@ describe('Content-Type header edge cases', () => {
     const client = setupClient();
     await client.post('/users', { name: 'Tuan' });
     const [, init] = lastCall();
-    expect(init.headers?.['Content-Type']).toBe('application/json');
+    expect(init.headers?.['content-type']).toBe('application/json');
   });
 });

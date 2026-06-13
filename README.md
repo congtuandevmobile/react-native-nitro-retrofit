@@ -13,36 +13,45 @@ A **Retrofit-style** decorator library for React Native, powered by [`react-nati
 
 ## Why this library?
 
-### The problem with writing API calls by hand
+### 1. The problem with raw `react-native-nitro-fetch`
+
+`react-native-nitro-fetch` is a powerful low-level networking library — it runs HTTP on a native C++ thread via JSI (bypassing the JS bridge entirely), and ships advanced features like prefetching, worklet-based response mapping, streaming, and WebSocket prewarm. It is genuinely excellent at what it does.
+
+But for day-to-day REST API work, using it directly still means boilerplate on every endpoint:
 
 ```ts
-// ❌ Raw fetch — repeated everywhere, every caller handles URL, headers, errors
-const res = await fetch(`${BASE_URL}/users/${id}?include=profile`, {
-  method: 'GET',
-  headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-});
-if (!res.ok) throw new Error(`HTTP ${res.status}`);
-const user = await res.json();
+// ❌ Raw nitro-fetch: fast, but every endpoint is manual work
+import { fetch } from 'react-native-nitro-fetch';
 
-// ❌ axios — still verbose, every endpoint needs a wrapper function
-async function getUser(id: number) {
-  const res = await api.get(`/users/${id}`, { params: { include: 'profile' } });
-  return res.data;
-}
-// And another for POST... and another for PUT...
-// No structure, no contract, just functions floating around.
+const res = await fetch(
+  `${BASE_URL}/users/${id}?status=${status}&tags[]=1&tags[]=2`,
+  {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`, // injected by hand every time
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload), // manual serialisation
+  }
+);
+if (!res.ok) throw new Error(`HTTP ${res.status}`); // manual error handling
 ```
 
-### The solution: describe your API as a typed class
+Multiply this by 30 endpoints: 30 places to forget the auth header, 30 places to mis-spell a query param, zero typed contract to test against.
+
+### 2. The solution: `react-native-nitro-retrofit`
+
+This library is the **declarative API layer on top of `nitro-fetch`**. It keeps every bit of the native-thread performance while giving you the Developer Experience of Retrofit / NestJS:
 
 ```ts
 // ✅ Declare once, call anywhere — clean, typed, testable
 @ApiService('users')
 class UserService extends BaseService {
   @Param('id', 0)
-  @Query('include', 1)
+  @Query('status', 1)
+  @QueriesMap(2)
   @GET('/:id')
-  getUser(_id: number, _include: string): Promise<Response> { return null!; }
+  getUser(_id: number, _status: string, _filters: QueryMap): Promise<Response> { return null!; }
 
   @Body(0)
   @POST('/')
@@ -58,20 +67,40 @@ class UserService extends BaseService {
   removeUser(_id: number): Promise<Response> { return null!; }
 }
 
-// Usage — no boilerplate, full type safety
-const res = await userService.getUser(42, 'profile');
-const user: User = await res.json();
+// URL building, JSON serialisation, and auth headers — all automatic
+const res = await userService.getUser(42, 'active', { tags: [1, 2] });
 ```
 
-The library builds the URL, injects headers, serialises params, and fires the request. Your service class becomes a **typed contract** — readable, testable, and in one place.
+What `nitro-retrofit` adds on top of raw `nitro-fetch`:
 
-### Why `react-native-nitro-fetch` instead of plain `fetch`?
+| Feature | Raw `nitro-fetch` | `nitro-retrofit` |
+|---|---|---|
+| Zero boilerplate endpoints | ❌ | ✅ |
+| Global auth / logging interceptors | ❌ | ✅ |
+| Automatic JSON serialisation | ❌ | ✅ |
+| Path / query / body param binding | ❌ | ✅ |
+| GET request deduplication | ❌ | ✅ |
+| Array query format (`repeat`/`comma`/`brackets`) | ❌ | ✅ |
+| `HttpError` on 4xx/5xx | ❌ | ✅ |
+| Prefetching on app startup | ✅ | ✅ (via nitro-fetch) |
+| Worklet response mapping | ✅ | ✅ (via nitro-fetch) |
+| Streaming (`ReadableStream`) | ✅ | ✅ (via nitro-fetch) |
+| WebSocket prewarm | ✅ | — (use nitro-fetch directly) |
+| Metro Fast Refresh safe | ✅ | ✅ |
+| Native thread HTTP (HTTP/3, QUIC, Brotli) | ✅ | ✅ (via nitro-fetch) |
+
+### 3. Why `react-native-nitro-fetch` instead of plain `fetch`?
 
 `react-native-nitro-fetch` runs HTTP on a **native thread** (C++ via JSI), not the JS thread. Requests don't compete with UI, animations, or React re-renders. It delivers:
 
-- HTTP/3 and QUIC out of the box (Cronet on Android, URLSession on iOS)
-- Brotli compression — smaller payloads over the wire
-- No JS bridge — requests never block your event loop
+- **HTTP/1, HTTP/2, HTTP/3 and QUIC** — Cronet on Android, URLSession on iOS
+- **Brotli compression** — smaller payloads over the wire
+- **No JS bridge** — requests never block your event loop
+- **Prefetching** — cache responses before your screen even mounts (`prefetch`, `prefetchOnAppStart`)
+- **Worklet mapping** — parse JSON on a background thread without touching the JS thread (`nitroFetchOnWorklet`)
+- **Streaming** — `ReadableStream` body for incremental decoding
+
+> Requires React Native **0.75+** (Nitro Modules prerequisite).
 
 ---
 
@@ -261,7 +290,32 @@ networkRegisterBuilder(client);
 | `headers` | `Record<string, string>` | `{}` | Default headers merged with every request |
 | `deduplicateRequests` | `boolean` | `false` | Collapse concurrent identical GETs into one network call |
 | `throwOnNon2xx` | `boolean` | `true` | Throw `HttpError` for HTTP status ≥ 400 |
+| `arrayFormat` | `'repeat' \| 'comma' \| 'brackets'` | `'repeat'` | Array query param serialisation format |
 | `[key: string]` | `unknown` | — | Extra fields forwarded to the underlying `fetch` `RequestInit` |
+
+#### Removing a default header per-request
+
+Pass `undefined` as the value to strip a client-level default header on a specific request (e.g. remove `Authorization` on public endpoints):
+
+```ts
+const client = createNitroRetrofitClient({
+  baseURL: 'https://api.example.com',
+  headers: { Authorization: 'Bearer token' },
+});
+
+// Authorization header is stripped for this call
+await client.get('/public', {
+  headers: { Authorization: undefined as unknown as string },
+});
+```
+
+With `@Headers` on a decorator:
+
+```ts
+@Headers({ Authorization: undefined }) // strips the default token
+@POST('/auth/login')
+login(@Body(0) credentials: LoginDto): Promise<Response> { return null!; }
+```
 
 ---
 
@@ -352,7 +406,20 @@ search(_filters: { userId?: number; status?: string; page?: number }): Promise<R
 postService.search({ userId: 1, status: 'active', page: 2 });
 ```
 
-Arrays are serialised as repeat-key format: `?ids=1&ids=2&ids=3` (compatible with Spring Boot, NestJS, etc.).
+Array serialisation format is controlled by the `arrayFormat` client option:
+
+| `arrayFormat` | Output | Compatible with |
+|---|---|---|
+| `'repeat'` (default) | `?ids=1&ids=2&ids=3` | Spring Boot, NestJS, Go |
+| `'comma'` | `?ids=1,2,3` | Many REST APIs |
+| `'brackets'` | `?ids[]=1&ids[]=2` | PHP / Laravel |
+
+```ts
+const client = createNitroRetrofitClient({
+  baseURL: 'https://api.example.com',
+  arrayFormat: 'comma', // → ?ids=1,2,3
+});
+```
 
 #### `@Body(index)` — JSON request body
 
@@ -587,6 +654,8 @@ const [r1, r2, r3] = await Promise.all([
 - Safe for mobile: GET is idempotent and there is only one authenticated user per app instance.
 - Response interceptors still run once per caller — each has its own clone.
 - Only applies to GET. POST/PUT/PATCH/DELETE are never deduplicated.
+
+> **⚠️ Error interceptor fan-out**: if the shared request fails (e.g. 401 Unauthorized), error interceptors fire independently for **each caller**. Side-effectful logic such as token refresh or toast notifications must be debounced on your side to avoid triggering N times for N concurrent callers.
 
 ---
 

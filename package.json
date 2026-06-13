@@ -1,6 +1,6 @@
 {
   "name": "react-native-nitro-retrofit",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Retrofit-style decorator library for React Native, powered by react-native-nitro-fetch for native-thread HTTP performance.",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",

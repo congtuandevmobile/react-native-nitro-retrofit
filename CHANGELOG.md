@@ -2,6 +2,47 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.0.2
+
+### 🐛 Bug Fixes
+
+- **`extractPath`** — fixed `https://` being corrupted by naive `replace('//', '/')` when `prefixUrl` is an absolute URL
+- **`extractPath`** — `@GET('')` (empty path) no longer silently drops the `@ApiService` prefix; `path == null` check now correctly distinguishes "no decorator" from "call the root"
+- **Path param substring collision** — keys are now sorted longest-first and replaced via `split/join` (global) so `:id` can never corrupt `:idType` in patterns like `@GET('/users/:id/docs/:idType')`
+- **Path param without leading slash** — `@GET(':id')` and `@GET('users-:id/details')` now resolve correctly; the hardcoded `/:key` pattern has been removed
+- **Zombie timer leak** — the `setTimeout` fallback for `AbortSignal.timeout` (Hermes < RN 0.74) is now cleared in a `finally` block immediately after the request completes
+- **`mergeHeaders`** — passing `undefined` as an override value now deletes the default header (e.g. strip `Authorization` on public endpoints); previously `undefined` was silently ignored
+- **`mergeHeaders`** — all header keys are normalised to lowercase per RFC 7230, both at merge time and as the final step before `fetch`; request interceptors injecting mixed-case keys (e.g. `Authorization`) are also normalised
+- **`ctx.headers` guard** — header normalisation loop now guards against `undefined` headers instead of blindly iterating
+- **`validateQueryMap` error message** — replaced `JSON.stringify(val)` with `typeof val` to prevent crash on circular references
+
+### ✨ Improvements
+
+- **`arrayFormat` config option** — control array query param serialisation: `'repeat'` (default, `?ids=1&ids=2`), `'comma'` (`?ids=1,2`), `'brackets'` (`?ids[]=1&ids[]=2`; brackets are kept raw, not percent-encoded)
+- **Interceptor memory leak warning** — `console.warn` fires in `__DEV__` mode when more than 20 interceptors are registered on a single client (likely missing `useEffect` cleanup)
+- **`AxiosRetrofitAdapter` FormData warning** — `__DEV__` warning when a React Native `{ uri, name, type }` file object is detected inside FormData passed to `postForm`/`putForm`/`patchForm`; Axios cannot handle RN's FormData format correctly
+- **`AbortSignal.timeout` fallback** — graceful degradation to `AbortController` + `setTimeout` on Hermes engines older than RN 0.74 that lack the static method
+- **GET dedup error fan-out** — documented in JSDoc and README: when `deduplicateRequests: true` and the shared request fails, error interceptors fire once per caller; debounce token-refresh or toast logic on the consumer side
+
+### 🧪 Tests
+
+66 tests across 7 suites — 5 new cases added:
+- `undefined` header override removes the default header
+- All header keys are sent lowercase
+- Path param substring collision (`/:id` + `/:idType`)
+- `@GET(':id')` with no leading slash resolves correctly
+- `validateQueryMap` error message uses `typeof`, not `JSON.stringify`
+
+### 📖 Documentation
+
+- **README** — `arrayFormat` added to config table with format comparison table (`repeat`/`comma`/`brackets`)
+- **README** — "Removing a default header" section with `undefined` override pattern
+- **README** — GET deduplication section warns about error interceptor fan-out
+- **README** — "Why this library?" rewritten: separates `nitro-fetch` capabilities from `nitro-retrofit` USP; accurate comparison table includes prefetching, worklet mapping, streaming
+- **README** — `nitro-fetch` feature list updated to reflect actual docs (prefetch, worklet, streaming, RN 0.75+ requirement)
+
+---
+
 ## v0.0.1
 
 ### 🎉 Initial Release

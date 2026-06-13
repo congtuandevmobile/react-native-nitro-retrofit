@@ -25,8 +25,12 @@ export function handleRequest(
   // ── Path ──────────────────────────────────────────────────────────────────
   let path = extractPath(ctor, methodName);
   const params = extractParams(ctor, methodName, args);
-  for (const key in params) {
-    path = path.replace(`/:${key}`, `/${String(params[key])}`);
+  // Sort keys longest-first to prevent substring collision: if both `:id` and
+  // `:idType` exist, processing `:idType` first ensures `:id` never matches
+  // inside `:idType`. split/join replaces ALL occurrences (not just the first).
+  const paramKeys = Object.keys(params).sort((a, b) => b.length - a.length);
+  for (const key of paramKeys) {
+    path = path.split(`:${key}`).join(String(params[key]));
   }
 
   // ── Query params ──────────────────────────────────────────────────────────

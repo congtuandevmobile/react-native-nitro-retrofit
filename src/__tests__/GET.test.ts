@@ -97,6 +97,41 @@ describe('@GET decorator', () => {
   });
 });
 
+describe('@Param — substring collision guard', () => {
+  @ApiService(SERVER_URL)
+  class DocService extends BaseService {
+    @Param('idType', 1)
+    @Param('id', 0)
+    @GET('/users/:id/docs/:idType')
+    getDocs(_id: number, _idType: string): Promise<Response> {
+      return null!;
+    }
+
+    @Param('id', 0)
+    @GET(':id')
+    getRoot(_id: number): Promise<Response> {
+      return null!;
+    }
+  }
+
+  const svc = new DocService();
+
+  it('longer param (:idType) is not corrupted by shorter (:id)', async () => {
+    await svc.getDocs(5, 'pdf');
+    const [url] = lastCall();
+    expect(url).toContain('/users/5/docs/pdf');
+    expect(url).not.toContain(':id');
+    expect(url).not.toContain(':idType');
+  });
+
+  it('@GET with no leading slash and a single param works', async () => {
+    await svc.getRoot(7);
+    const [url] = lastCall();
+    expect(url).toContain('7');
+    expect(url).not.toContain(':id');
+  });
+});
+
 describe('@StaticQuery', () => {
   @ApiService('posts')
   class PostService extends BaseService {

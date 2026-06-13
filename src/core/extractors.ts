@@ -21,9 +21,17 @@ export function extractPath(ctor: Function, methodName: string): string {
   const meta = getOrCreateMeta(ctor);
   const prefixUrl = meta.prefixUrl;
   const path = meta.requests?.[methodName]?.path;
-  if (!path) return '';
-  if (!prefixUrl) return path;
-  return `${prefixUrl}/${path}`.replace('//', '/');
+  // `undefined` means the method has no @GET/@POST/… decorator at all.
+  // Empty string `''` is valid — it means "call the prefix root directly".
+  if (path == null) return prefixUrl ?? '';
+
+  const cleanPrefix = (prefixUrl ?? '').replace(/\/+$/, '');
+  const cleanPath = path.replace(/^\/+/, '');
+
+  // path is empty → return prefix only (avoid a trailing slash)
+  if (cleanPath === '') return cleanPrefix;
+
+  return cleanPrefix ? `${cleanPrefix}/${cleanPath}` : cleanPath;
 }
 
 export function extractParams(

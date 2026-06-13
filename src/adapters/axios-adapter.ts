@@ -61,6 +61,43 @@ interface AxiosLikeResponse {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/**
+ * Warn when a React Native-style file object `{ uri, name, type }` is passed
+ * to an Axios FormData method. Axios uses the browser/Node FormData spec and
+ * does not understand the RN `uri` field — the multipart boundary will be
+ * malformed and the server will reject the upload.
+ *
+ * For file uploads in React Native, use `NitroRetrofitClient.postForm()` /
+ * `putForm()` / `patchForm()` which passes FormData straight to the native
+ * fetch layer without any transformation.
+ */
+function warnIfRNFileObject(formData: FormData | undefined): void {
+  if (
+    typeof __DEV__ === 'undefined' ||
+    !__DEV__ ||
+    !(formData instanceof FormData)
+  )
+    return;
+
+  const parts: unknown[] = (formData as { _parts?: unknown[] })._parts ?? [];
+  for (const part of parts) {
+    if (
+      Array.isArray(part) &&
+      part[1] != null &&
+      typeof part[1] === 'object' &&
+      'uri' in (part[1] as object)
+    ) {
+      console.warn(
+        '[nitro-retrofit] AxiosRetrofitAdapter received a React Native file object ' +
+          '({ uri, name, type }) inside FormData. Axios does not support the RN FormData ' +
+          'format — the multipart boundary will be malformed. ' +
+          'Use NitroRetrofitClient (postForm / putForm / patchForm) for file uploads in React Native.'
+      );
+      return;
+    }
+  }
+}
+
 function toAdapterConfig(config?: IRequestConfig): object {
   return {
     ...(config?.baseURL ? { baseURL: config.baseURL } : {}),
@@ -137,6 +174,7 @@ export class AxiosRetrofitAdapter implements INitroRetrofitBuilder {
     formData?: FormData,
     config?: IRequestConfig
   ): Promise<Response> {
+    warnIfRNFileObject(formData);
     const fn = this._axios.postForm ?? this._axios.post;
     return toFetchResponse(
       await fn.call(this._axios, path, formData, toAdapterConfig(config))
@@ -158,6 +196,7 @@ export class AxiosRetrofitAdapter implements INitroRetrofitBuilder {
     formData?: FormData,
     config?: IRequestConfig
   ): Promise<Response> {
+    warnIfRNFileObject(formData);
     const fn = this._axios.putForm ?? this._axios.put;
     return toFetchResponse(
       await fn.call(this._axios, path, formData, toAdapterConfig(config))
@@ -179,6 +218,7 @@ export class AxiosRetrofitAdapter implements INitroRetrofitBuilder {
     formData?: FormData,
     config?: IRequestConfig
   ): Promise<Response> {
+    warnIfRNFileObject(formData);
     const fn = this._axios.patchForm ?? this._axios.patch;
     return toFetchResponse(
       await fn.call(this._axios, path, formData, toAdapterConfig(config))

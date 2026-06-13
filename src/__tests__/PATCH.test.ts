@@ -32,14 +32,14 @@ describe('client.patch()', () => {
     const client = setupClient();
     await client.patch('/users/1', { name: 'Patched' });
     const [, init] = lastCall();
-    expect(init.headers?.['Content-Type']).toBe('application/json');
+    expect(init.headers?.['content-type']).toBe('application/json');
   });
 
   it('does NOT set Content-Type when body is absent', async () => {
     const client = setupClient();
     await client.patch('/users/1');
     const [, init] = lastCall();
-    expect(init.headers?.['Content-Type']).toBeUndefined();
+    expect(init.headers?.['content-type']).toBeUndefined();
   });
 
   it('sends JSON-serialised body', async () => {
@@ -74,6 +74,6 @@ describe('@PATCH + @Body + @Param', () => {
     expect(url).toContain('/users/3');
     expect(init.method).toBe('PATCH');
     expect(init.body).toBe(JSON.stringify({ email: 'new@example.com' }));
-    expect(init.headers?.['Content-Type']).toBe('application/json');
+    expect(init.headers?.['content-type']).toBe('application/json');
   });
 });

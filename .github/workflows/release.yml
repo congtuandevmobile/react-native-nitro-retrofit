@@ -17,29 +17,26 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      # Step 1: Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # Step 2: Setup Bun
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
-          version: latest
+          bun-version: latest
 
-      # Step 3: Install Dependencies && Build Package
       - name: Install Dependencies
         run: bun install --frozen-lockfile
-      - name: Build Package
-        run: bun run build
 
-      # Step 4: Read version from package.json
+      - name: Build Package
+        run: bun run prepare
+
       - name: Read package version
         id: version
         run: |
-          VERSION=$(node -p "require('./package.json').version")
+          VERSION=$(bun -e "console.log(require('./package.json').version)")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=v$VERSION" >> $GITHUB_OUTPUT
 
@@ -53,7 +50,6 @@ jobs:
             echo "Detected Release version: $VERSION (tag: latest)"
           fi
 
-      # Step 5: Ensure tag doesn't already exist
       - name: Check if tag exists
         run: |
           if git rev-parse "${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
@@ -61,40 +57,37 @@ jobs:
             exit 1
           fi
 
-      # Step 6: Extract release notes from CHANGELOG.md
       - name: Generate release notes from CHANGELOG
         id: notes
         run: |
           VERSION="${{ steps.version.outputs.tag }}"
+          RAW_VERSION="${{ steps.version.outputs.version }}"
 
-          if ! grep -q "## $VERSION" CHANGELOG.md; then
-            echo "❌ No changelog entry found for $VERSION"
+          if ! grep -qE "## ($VERSION|$RAW_VERSION)" CHANGELOG.md; then
+            echo "❌ No changelog entry found for $VERSION or $RAW_VERSION"
             exit 1
           fi
 
-          awk -v ver="$VERSION" '
-            $0 == "## " ver {flag=1; next}
-            /^## v/ && flag {exit}
+          awk -v ver="$VERSION" -v raw="$RAW_VERSION" '
+            $0 ~ "^## (" ver "|" raw ")" {flag=1; next}
+            /^## / && flag {exit}
             flag
           ' CHANGELOG.md > release.md
 
           echo "📄 Release notes:"
           cat release.md
 
-      # Step 7: Publish package
       - name: Setup npm auth
         run: echo "//registry.npmjs.org/:_authToken=${{ secrets.TUANNC2_SECRET_KEY }}" > ~/.npmrc
 
       - name: Publish package
-        run: npm publish --access public --tag ${{ steps.version.outputs.npm_tag }} --ignore-scripts
+        run: bun publish --access public --tag ${{ steps.version.outputs.npm_tag }}
 
-      # Step 8: Create git tag
       - name: Create git tag
         run: |
           git tag ${{ steps.version.outputs.tag }}
           git push origin ${{ steps.version.outputs.tag }}
 
-      # Step 9: Create GitHub Release (from CHANGELOG)
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:

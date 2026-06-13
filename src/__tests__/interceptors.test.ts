@@ -23,7 +23,7 @@ describe('request interceptors', () => {
     }));
     await client.get('/me');
     const [, init] = lastCall();
-    expect(init.headers?.Authorization).toBe('Bearer injected');
+    expect(init.headers?.authorization).toBe('Bearer injected');
   });
 
   it('run in registration order', async () => {
@@ -173,8 +173,33 @@ describe('header merging', () => {
       headers: { Authorization: 'Bearer override' },
     });
     const [, init] = lastCall();
-    expect(init.headers?.['X-App']).toBe('test');
-    expect(init.headers?.Authorization).toBe('Bearer override');
+    expect(init.headers?.['x-app']).toBe('test');
+    expect(init.headers?.authorization).toBe('Bearer override');
+  });
+
+  it('undefined override removes a default header', async () => {
+    const client = createNitroRetrofitClient({
+      baseURL: SERVER_URL,
+      headers: { 'Authorization': 'Bearer default', 'X-App': 'test' },
+    });
+    await client.get('/public', {
+      headers: { Authorization: undefined as unknown as string },
+    });
+    const [, init] = lastCall();
+    expect(init.headers?.authorization).toBeUndefined();
+    expect(init.headers?.['x-app']).toBe('test');
+  });
+
+  it('headers are always sent lowercase', async () => {
+    const client = createNitroRetrofitClient({
+      baseURL: SERVER_URL,
+      headers: { 'Content-Type': 'application/json', 'X-Trace-Id': 'abc' },
+    });
+    await client.get('/users');
+    const [, init] = lastCall();
+    expect(init.headers?.['content-type']).toBe('application/json');
+    expect(init.headers?.['x-trace-id']).toBe('abc');
+    expect(init.headers?.['Content-Type']).toBeUndefined();
   });
 });
 
