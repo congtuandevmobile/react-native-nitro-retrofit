@@ -80,7 +80,7 @@ jobs:
       - name: Publish package
         run: bun publish --access public --tag ${{ steps.version.outputs.npm_tag }}
         env:
-          BUN_AUTH_TOKEN: ${{ secrets.TUANNC2_SECRET_KEY }}
+          NPM_CONFIG_TOKEN: ${{ secrets.TUANNC2_SECRET_KEY }}
 
       - name: Create git tag
         run: |
