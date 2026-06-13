@@ -77,11 +77,10 @@ jobs:
           echo "📄 Release notes:"
           cat release.md
 
-      - name: Setup npm auth
-        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.TUANNC2_SECRET_KEY }}" > ~/.npmrc
-
       - name: Publish package
         run: bun publish --access public --tag ${{ steps.version.outputs.npm_tag }}
+        env:
+          BUN_AUTH_TOKEN: ${{ secrets.TUANNC2_SECRET_KEY }}
 
       - name: Create git tag
         run: |
